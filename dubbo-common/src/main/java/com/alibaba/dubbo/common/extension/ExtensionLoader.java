@@ -56,6 +56,11 @@ import java.util.regex.Pattern;
  * @see com.alibaba.dubbo.common.extension.Adaptive
  * @see com.alibaba.dubbo.common.extension.Activate
  */
+
+/**
+ * 一个ExtensionLoader对应一个接口
+ * @param <T>
+ */
 public class ExtensionLoader<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ExtensionLoader.class);
@@ -74,6 +79,7 @@ public class ExtensionLoader<T> {
 
     // ==============================
 
+    //接口类型
     private final Class<?> type;
 
     private final ExtensionFactory objectFactory;
@@ -741,10 +747,17 @@ public class ExtensionLoader<T> {
         return compiler.compile(code, classLoader);
     }
 
+    /**
+     * 创建一个自适应的拓展类的Java代码
+     * 所谓的自适应的拓展类，我认为实际上相当于一个拓展类选择器，通过传入参数的不同，该选择器会选择你预先实现好的不同的拓展类
+     * 官方源码导读：http://dubbo.apache.org/zh-cn/docs/source_code_guide/adaptive-extension.html
+     * @return 新的拓展类的Java代码
+     */
     private String createAdaptiveExtensionClassCode() {
         StringBuilder codeBuilder = new StringBuilder();
         Method[] methods = type.getMethods();
         boolean hasAdaptiveAnnotation = false;
+        //要求该接口下至少有一个方法被@Adaptive注解修饰
         for (Method m : methods) {
             if (m.isAnnotationPresent(Adaptive.class)) {
                 hasAdaptiveAnnotation = true;
@@ -755,23 +768,40 @@ public class ExtensionLoader<T> {
         if (!hasAdaptiveAnnotation)
             throw new IllegalStateException("No adaptive method on extension " + type.getName() + ", refuse to create the adaptive class!");
 
+        /**
+         * Java代码格式：
+         * 1.package
+         * 2.导包，注意java.lang下的类不需要导，比如后面会用到 IllegalArgumentException
+         */
         codeBuilder.append("package ").append(type.getPackage().getName()).append(";");
         codeBuilder.append("\nimport ").append(ExtensionLoader.class.getName()).append(";");
         codeBuilder.append("\npublic class ").append(type.getSimpleName()).append("$Adaptive").append(" implements ").append(type.getCanonicalName()).append(" {");
 
         for (Method method : methods) {
+            //方法的返回值
             Class<?> rt = method.getReturnType();
+            //方法的参数列表
             Class<?>[] pts = method.getParameterTypes();
+            //方法定义的抛出异常
             Class<?>[] ets = method.getExceptionTypes();
 
             Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);
             StringBuilder code = new StringBuilder(512);
             if (adaptiveAnnotation == null) {
+                //不被@Adaptive修饰的拓展类方法 通过Adaptive拓展类 被调用时抛异常
                 code.append("throw new UnsupportedOperationException(\"method ")
                         .append(method.toString()).append(" of interface ")
                         .append(type.getName()).append(" is not adaptive method!\");");
             } else {
+                /**
+                 * 因为Adaptive拓展类是在运行时 选择不同的拓展，具体选择那个拓展是通过Url中的参数指定的，
+                 * 所以首先需要拿到URL对象，URL对象可以有两个来源：
+                 * 1.参数列表
+                 * 2.参数列表中某个参数的getURL方法
+                 * 这两个地方都找不到就抛异常
+                 */
                 int urlTypeIndex = -1;
+                //首先从参数列表中找
                 for (int i = 0; i < pts.length; ++i) {
                     if (pts[i].equals(URL.class)) {
                         urlTypeIndex = i;
@@ -781,6 +811,7 @@ public class ExtensionLoader<T> {
                 // found parameter in URL type
                 if (urlTypeIndex != -1) {
                     // Null Point check
+                    //TODO 这里参数名默认就是argxxx吗？
                     String s = String.format("\nif (arg%d == null) throw new IllegalArgumentException(\"url == null\");",
                             urlTypeIndex);
                     code.append(s);
@@ -789,6 +820,7 @@ public class ExtensionLoader<T> {
                     code.append(s);
                 }
                 // did not find parameter in URL type
+                //从参数列表中的某个参数的getURL方法中获得
                 else {
                     String attribMethod = null;
 
@@ -798,6 +830,7 @@ public class ExtensionLoader<T> {
                         Method[] ms = pts[i].getMethods();
                         for (Method m : ms) {
                             String name = m.getName();
+                            //满足方法以get开头并且返回值是URL类型，那就认为他是一个URL的getter了
                             if ((name.startsWith("get") || name.length() > 3)
                                     && Modifier.isPublic(m.getModifiers())
                                     && !Modifier.isStatic(m.getModifiers())
@@ -828,6 +861,7 @@ public class ExtensionLoader<T> {
 
                 String[] value = adaptiveAnnotation.value();
                 // value is not set, use the value generated from class name as the key
+                // 获取Adaptive注解值
                 if (value.length == 0) {
                     char[] charArray = type.getSimpleName().toCharArray();
                     StringBuilder sb = new StringBuilder(128);
@@ -844,6 +878,7 @@ public class ExtensionLoader<T> {
                     value = new String[]{sb.toString()};
                 }
 
+                //获取参数列表中的 Invocation 对象，如果有这种对象则做判空操作
                 boolean hasInvocation = false;
                 for (int i = 0; i < pts.length; ++i) {
                     if (pts[i].getName().equals("com.alibaba.dubbo.rpc.Invocation")) {
@@ -857,6 +892,14 @@ public class ExtensionLoader<T> {
                     }
                 }
 
+                /**
+                 * 因为这个自适应的拓展类实际上相当于一个拓展类选择器，
+                 * 所以他需要知道他应该选择哪个拓展类，
+                 * 所以就需要知道拓展类名，
+                 * 拓展类名可以从不同的地方获得，
+                 * 所以下面的逻辑比较复杂
+                 */
+                //设置默认拓展名，cachedDefaultName 源于 SPI 注解值
                 String defaultExtName = cachedDefaultName;
                 String getNameCode = null;
                 for (int i = value.length - 1; i >= 0; --i) {
@@ -895,15 +938,21 @@ public class ExtensionLoader<T> {
                         type.getName(), Arrays.toString(value));
                 code.append(s);
 
+                /**
+                 * 根据拓展名获取拓展实例
+                 * %<s表示使用前一个描述符的值，也就是 第一个%s 和 第二个 %<s 都使用 type.getName()
+                 */
                 s = String.format("\n%s extension = (%<s)%s.getExtensionLoader(%s.class).getExtension(extName);",
                         type.getName(), ExtensionLoader.class.getSimpleName(), type.getName());
                 code.append(s);
 
                 // return statement
+                // 如果不返回为空，需要加一个返回语句
                 if (!rt.equals(void.class)) {
                     code.append("\nreturn ");
                 }
 
+                //调用具体的拓展类的的代理方法
                 s = String.format("extension.%s(", method.getName());
                 code.append(s);
                 for (int i = 0; i < pts.length; i++) {
@@ -912,8 +961,12 @@ public class ExtensionLoader<T> {
                     code.append("arg").append(i);
                 }
                 code.append(");");
+                //至此，方法体就生产完毕了
             }
 
+            /**
+             * 将上边生成的方法体放到方法声明中
+             */
             codeBuilder.append("\npublic ").append(rt.getCanonicalName()).append(" ").append(method.getName()).append("(");
             for (int i = 0; i < pts.length; i++) {
                 if (i > 0) {
@@ -925,6 +978,7 @@ public class ExtensionLoader<T> {
             }
             codeBuilder.append(")");
             if (ets.length > 0) {
+                //抛一抛异常
                 codeBuilder.append(" throws ");
                 for (int i = 0; i < ets.length; i++) {
                     if (i > 0) {
@@ -936,11 +990,13 @@ public class ExtensionLoader<T> {
             codeBuilder.append(" {");
             codeBuilder.append(code.toString());
             codeBuilder.append("\n}");
+            //方法生成完毕了
         }
         codeBuilder.append("\n}");
         if (logger.isDebugEnabled()) {
             logger.debug(codeBuilder.toString());
         }
+        //这个类就生成完毕了
         return codeBuilder.toString();
     }
 
