@@ -164,21 +164,36 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
         encodeResponseData(channel, out, data, DUBBO_VERSION);
     }
 
+    /**
+     *
+     * @param channel
+     * @param out 实际指向的是 ChannelBuffer
+     * @param data
+     * @param version
+     * @throws IOException
+     */
     @Override
     protected void encodeRequestData(Channel channel, ObjectOutput out, Object data, String version) throws IOException {
         RpcInvocation inv = (RpcInvocation) data;
 
+        //向消息体写dubbo版本
         out.writeUTF(version);
+        //向消息体写路径
         out.writeUTF(inv.getAttachment(Constants.PATH_KEY));
+        //向消息体写 remote-service的版本
         out.writeUTF(inv.getAttachment(Constants.VERSION_KEY));
 
+        //向消息体写 我要调用哪个方法
         out.writeUTF(inv.getMethodName());
+        //向消息体写 目标方法的参数信息
         out.writeUTF(ReflectUtils.getDesc(inv.getParameterTypes()));
         Object[] args = inv.getArguments();
         if (args != null)
             for (int i = 0; i < args.length; i++) {
+                //向消息体写运行时参数
                 out.writeObject(encodeInvocationArgument(channel, inv, i));
             }
+        //向消息体写 attachment信息
         out.writeObject(inv.getAttachments());
     }
 

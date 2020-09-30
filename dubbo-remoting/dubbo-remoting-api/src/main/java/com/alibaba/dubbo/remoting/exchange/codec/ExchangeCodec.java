@@ -47,6 +47,15 @@ import java.io.InputStream;
  *
  *
  */
+
+/**
+ * 官方文档：https://dubbo.apache.org/zh-cn/docs/source_code_guide/service-invoking-process.html
+ * Dubbo数据包结构图片地址：https://dubbo.apache.org/docs/zh-cn/source_code_guide/sources/images/data-format.jpg
+ *
+ * Dubbo数据包分为 消息头和消息体，
+ *  消息头用于存储一些元信息，比如魔数（Magic），数据包类型（Request/Response），消息体长度（Data Length）等，消息头 16个字节。
+ *  消息体中用于存储具体的调用消息，比如方法名称，参数列表等。
+ */
 public class ExchangeCodec extends TelnetCodec {
 
     // header length.
@@ -211,6 +220,7 @@ public class ExchangeCodec extends TelnetCodec {
     protected void encodeRequest(Channel channel, ChannelBuffer buffer, Request req) throws IOException {
         Serialization serialization = getSerialization(channel);
         // header.
+        //创建消息头字节数组，长度为16
         byte[] header = new byte[HEADER_LENGTH];
         // set magic number.
         Bytes.short2bytes(MAGIC, header);
@@ -222,16 +232,27 @@ public class ExchangeCodec extends TelnetCodec {
         if (req.isEvent()) header[2] |= FLAG_EVENT;
 
         // set request id.
+        //设置 8个字节 的req-id
         Bytes.long2bytes(req.getId(), header, 4);
 
         // encode request data.
+        // 获取 buffer 当前的写位置
         int savedWriteIndex = buffer.writerIndex();
+        // 更新 writerIndex，为消息头预留 16 个字节的空间
         buffer.writerIndex(savedWriteIndex + HEADER_LENGTH);
         ChannelBufferOutputStream bos = new ChannelBufferOutputStream(buffer);
+        // 创建序列化器，比如 Hessian2ObjectOutput
         ObjectOutput out = serialization.serialize(channel.getUrl(), bos);
         if (req.isEvent()) {
+            // 对事件数据进行序列化操作
             encodeEventData(channel, out, req.getData());
         } else {
+            // 对业务请求数据进行序列化操作
+            /**
+             * 参数说明：
+             *  2.out：对消息体进行相应的序列化向out写
+             *  3.data：需要写的数据
+             */
             encodeRequestData(channel, out, req.getData(), req.getVersion());
         }
         out.flushBuffer();
@@ -240,13 +261,20 @@ public class ExchangeCodec extends TelnetCodec {
         }
         bos.flush();
         bos.close();
+
+        // 获取写入的字节数，也就是消息体长度
         int len = bos.writtenBytes();
         checkPayload(channel, len);
+
+        // 将消息体长度写入到消息头中
         Bytes.int2bytes(len, header, 12);
 
         // write
+        // 将 buffer 指针移动到 savedWriteIndex，为写消息头做准备
         buffer.writerIndex(savedWriteIndex);
+        // 从 savedWriteIndex 下标处写入消息头
         buffer.writeBytes(header); // write header.
+        // 设置新的 writerIndex，writerIndex = 原写下标 + 消息头长度 + 消息体长度
         buffer.writerIndex(savedWriteIndex + HEADER_LENGTH + len);
     }
 
