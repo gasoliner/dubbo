@@ -39,12 +39,14 @@ final class NettyChannel extends AbstractChannel {
 
     private static final Logger logger = LoggerFactory.getLogger(NettyChannel.class);
 
+    //缓存用的 Map， key-NeetyChannel, value-DubboChannel
     private static final ConcurrentMap<Channel, NettyChannel> channelMap = new ConcurrentHashMap<Channel, NettyChannel>();
 
     private final Channel channel;
 
     private final Map<String, Object> attributes = new ConcurrentHashMap<String, Object>();
 
+    //私有化构造方法
     private NettyChannel(Channel channel, URL url, ChannelHandler handler) {
         super(url, handler);
         if (channel == null) {
@@ -53,6 +55,7 @@ final class NettyChannel extends AbstractChannel {
         this.channel = channel;
     }
 
+    // 包保护哦
     static NettyChannel getOrAddChannel(Channel ch, URL url, ChannelHandler handler) {
         if (ch == null) {
             return null;
@@ -61,6 +64,7 @@ final class NettyChannel extends AbstractChannel {
         if (ret == null) {
             NettyChannel nettyChannel = new NettyChannel(ch, url, handler);
             if (ch.isActive()) {
+                //缓存管理起来
                 ret = channelMap.putIfAbsent(ch, nettyChannel);
             }
             if (ret == null) {
@@ -99,6 +103,11 @@ final class NettyChannel extends AbstractChannel {
         int timeout = 0;
         try {
             ChannelFuture future = channel.writeAndFlush(message);
+            /**
+             * 判断是否 需要等待消息发出
+             * 不需要则直接略过
+             * 需要则 await 阻塞到 发送出去
+             */
             if (sent) {
                 timeout = getUrl().getPositiveParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
                 success = future.await(timeout);

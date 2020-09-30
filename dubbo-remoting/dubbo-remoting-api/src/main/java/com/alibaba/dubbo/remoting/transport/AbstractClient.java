@@ -259,11 +259,18 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
         return channel.hasAttribute(key);
     }
 
+    /**
+     * 这还是一个框架方法，里面的 connect() 调用的 doConnect() 和 getChannel() 都由子类实现
+     * @param message
+     * @param sent    already sent to socket?
+     * @throws RemotingException
+     */
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
         if (send_reconnect && !isConnected()) {
             connect();
         }
+        //默认使用Netty作为通信框架
         Channel channel = getChannel();
         //TODO Can the value returned by getChannel() be null? need improvement.
         if (channel == null || !channel.isConnected()) {

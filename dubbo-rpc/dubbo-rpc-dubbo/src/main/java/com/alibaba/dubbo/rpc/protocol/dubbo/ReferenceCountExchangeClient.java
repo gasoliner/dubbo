@@ -32,6 +32,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * dubbo protocol support class.
  */
+
+/**
+ * 通过装饰器模式计算被引用的次数
+ *  因为一个 client 被创建出来之后会被缓存，缓存期间会被多次引用，
+ *  外界每引用一次，就会调用一下 ReferenceCountExchangeClient#incrementAndGetCount() 方法
+ */
 @SuppressWarnings("deprecation")
 final class ReferenceCountExchangeClient implements ExchangeClient {
 
@@ -154,6 +160,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
             } else {
                 client.close(timeout);
             }
+            //TODO 待研究 LazyClient 是个啥
             client = replaceWithLazyClient();
         }
     }

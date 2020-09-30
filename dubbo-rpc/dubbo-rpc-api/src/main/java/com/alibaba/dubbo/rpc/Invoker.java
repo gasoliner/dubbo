@@ -25,6 +25,11 @@ import com.alibaba.dubbo.common.Node;
  * @see com.alibaba.dubbo.rpc.InvokerListener
  * @see com.alibaba.dubbo.rpc.protocol.AbstractInvoker
  */
+
+/**
+ * 实现类大部分采用装饰器模式增添新特性
+ * @param <T>
+ */
 public interface Invoker<T> extends Node {
 
     /**

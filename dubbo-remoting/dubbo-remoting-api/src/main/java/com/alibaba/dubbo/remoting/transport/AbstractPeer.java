@@ -26,6 +26,10 @@ import com.alibaba.dubbo.remoting.RemotingException;
 /**
  * AbstractPeer
  */
+
+/**
+ * 官方文档：https://dubbo.apache.org/zh-cn/docs/source_code_guide/service-invoking-process.html
+ */
 public abstract class AbstractPeer implements Endpoint, ChannelHandler {
 
     private final ChannelHandler handler;
@@ -50,6 +54,7 @@ public abstract class AbstractPeer implements Endpoint, ChannelHandler {
 
     @Override
     public void send(Object message) throws RemotingException {
+        // 该方法由 AbstractClient 类实现
         send(message, url.getParameter(Constants.SENT_KEY, false));
     }
 

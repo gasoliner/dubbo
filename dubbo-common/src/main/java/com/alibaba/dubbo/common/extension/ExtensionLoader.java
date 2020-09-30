@@ -749,7 +749,7 @@ public class ExtensionLoader<T> {
 
     /**
      * 创建一个自适应的拓展类的Java代码
-     * 所谓的自适应的拓展类，我认为实际上相当于一个拓展类选择器，通过传入参数的不同，该选择器会选择你预先实现好的不同的拓展类
+     * 所谓的自适应的拓展类，我认为实际上相当于一个运行时拓展类选择器，通过传入参数的不同，该选择器会选择你预先实现好的不同的拓展类
      * 官方源码导读：http://dubbo.apache.org/zh-cn/docs/source_code_guide/adaptive-extension.html
      * @return 新的拓展类的Java代码
      */
@@ -861,7 +861,11 @@ public class ExtensionLoader<T> {
 
                 String[] value = adaptiveAnnotation.value();
                 // value is not set, use the value generated from class name as the key
-                // 获取Adaptive注解值
+                /**
+                 * 获取Adaptive注解值
+                 * @Adaptive注解的参数key1/key2... 表示使用URL中的 key的值作为实际要调用的扩展实例。
+                 * key1不存在则用key2...都不存在就是用defaultValue（被@SPI的参数指定）
+                  */
                 if (value.length == 0) {
                     char[] charArray = type.getSimpleName().toCharArray();
                     StringBuilder sb = new StringBuilder(128);

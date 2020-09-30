@@ -49,6 +49,9 @@ public class NettyClient extends AbstractClient {
 
     private Bootstrap bootstrap;
 
+    /**
+     * 这是Netty中的 Channel
+     */
     private volatile Channel channel; // volatile, please copy reference to use
 
     public NettyClient(final URL url, final ChannelHandler handler) throws RemotingException {
@@ -158,6 +161,7 @@ public class NettyClient extends AbstractClient {
         Channel c = channel;
         if (c == null || !c.isActive())
             return null;
+        //包装一个 NettyChannel 满足 com.alibaba.dubbo.remoting.Channel
         return NettyChannel.getOrAddChannel(c, getUrl(), this);
     }
 

@@ -35,10 +35,35 @@ import com.alibaba.dubbo.rpc.protocol.AbstractInvoker;
 import com.alibaba.dubbo.rpc.support.RpcUtils;
 
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * DubboInvoker
+ */
+
+/**
+ *
+ * 官方文档：https://dubbo.apache.org/zh-cn/docs/source_code_guide/service-invoking-process.html
+ *
+ * 官方以 DemoService 为例，调用图如下：
+ *  proxy0#sayHello(String)//动态生成的代理类
+ *   —> InvokerInvocationHandler#invoke(Object, Method, Object[])
+ *     —> MockClusterInvoker#invoke(Invocation)//执行服务降级逻辑修改逻辑
+ *       —> AbstractClusterInvoker#invoke(Invocation)
+ *         —> FailoverClusterInvoker#doInvoke(Invocation, List<Invoker<T>>, LoadBalance)
+ *           —> Filter#invoke(Invoker, Invocation)  // 包含多个 Filter 调用
+ *             —> ListenerInvokerWrapper#invoke(Invocation)
+ *               —> AbstractInvoker#invoke(Invocation)
+ *                 —> DubboInvoker#doInvoke(Invocation)
+ *                   —> ReferenceCountExchangeClient#request(Object, int)// Client被引用次数计数
+ *                     —> HeaderExchangeClient#request(Object, int) //心跳相关逻辑
+ *                       —> HeaderExchangeChannel#request(Object, int)
+ *                         —> AbstractPeer#send(Object)
+ *                           —> AbstractClient#send(Object, boolean) // 框架方法，做一些 发送前的准备工作，XXXClient持有XXXChannel
+ *                             —> NettyChannel#send(Object, boolean) // 调用 netty的channel的writeAndFlush方法
+ *                               —> NioClientSocketChannel#write(Object)
+ * @param <T>
  */
 public class DubboInvoker<T> extends AbstractInvoker<T> {
 
@@ -78,17 +103,42 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
             currentClient = clients[index.getAndIncrement() % clients.length];
         }
         try {
+            /**
+             * dubbo的三种调用方式：
+             * 1.异步无返回值（OneWay）
+             * 2.异步有返回值
+             * 3.同步阻塞
+             *
+             * 其中异步有返回值和同步阻塞的区别在于future.get由谁调用：
+             *      异步有返回值 是用户自己调用 future.get() 方法，使用方法：
+             *          String r = demoService.sayHello();//这个返回值是空的，不要用
+             *          //需要自己调用RpcContext获取Future
+             *          Future<String> future = RpcContext.getContext().getFuture();
+             *          //去做点别的浪费时间的业务逻辑
+             *          future.get()//阻塞获取异步结果
+             *      同步阻塞是由 Dubbo框架调用 future.get() 方法，使用方法略
+             */
             boolean isAsync = RpcUtils.isAsync(getUrl(), invocation);
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
             int timeout = getUrl().getMethodParameter(methodName, Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
             if (isOneway) {
+                /**
+                 * isSent：是否等待消息发出：
+                 *  1.false：不等待消息发出，将消息放到IO队列，即可返回
+                 *  2.true：等待消息发出
+                 */
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
                 currentClient.send(inv, isSent);
                 RpcContext.getContext().setFuture(null);
                 return new RpcResult();
             } else if (isAsync) {
                 ResponseFuture future = currentClient.request(inv, timeout);
+                /**
+                 * 这里将 dubbo的future使用FutureAdapter与JDK的Future进行适配
+                 * 所以用户在调用 RpcContext.getContext().getFuture();获得的Future是JDK的Future
+                 */
                 RpcContext.getContext().setFuture(new FutureAdapter<Object>(future));
+                //在这里暂时返回了空的结果
                 return new RpcResult();
             } else {
                 RpcContext.getContext().setFuture(null);

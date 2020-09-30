@@ -36,6 +36,10 @@ import java.net.InetSocketAddress;
 /**
  * ExchangeReceiver
  */
+
+/**
+ * 官方文档：https://dubbo.apache.org/zh-cn/docs/source_code_guide/service-invoking-process.html
+ */
 final class HeaderExchangeChannel implements ExchangeChannel {
 
     private static final Logger logger = LoggerFactory.getLogger(HeaderExchangeChannel.class);
@@ -50,6 +54,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         if (channel == null) {
             throw new IllegalArgumentException("channel == null");
         }
+        //这里的 channel 指向 NettyClient
         this.channel = channel;
     }
 
@@ -110,9 +115,11 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         Request req = new Request();
         req.setVersion(Version.getProtocolVersion());
         req.setTwoWay(true);
+        // 这里的 request 变量类型为 RpcInvocation
         req.setData(request);
         DefaultFuture future = new DefaultFuture(channel, req, timeout);
         try {
+            //该 send 方法来自于 AbstractPeer.send()
             channel.send(req);
         } catch (RemotingException e) {
             future.cancel();

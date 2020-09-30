@@ -62,6 +62,7 @@ public class DefaultFuture implements ResponseFuture {
     private final Condition done = lock.newCondition();
     private final long start = System.currentTimeMillis();
     private volatile long sent;
+    //注意volatile
     private volatile Response response;
     private volatile ResponseCallback callback;
 
@@ -71,6 +72,7 @@ public class DefaultFuture implements ResponseFuture {
         this.id = request.getId();
         this.timeout = timeout > 0 ? timeout : channel.getUrl().getPositiveParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
         // put into waiting map.
+        // 使用ConcurrentHashMap管理Future，所以如果不需要获取invoke结果，尽量使用OneWay，以减少这部分管理成本
         FUTURES.put(id, this);
         CHANNELS.put(id, channel);
     }
@@ -142,10 +144,14 @@ public class DefaultFuture implements ResponseFuture {
         }
         if (!isDone()) {
             long start = System.currentTimeMillis();
+            //锁住这个DefaultFuture对象
             lock.lock();
             try {
                 while (!isDone()) {
+                    //设置最多等待timeout
+                    //当接受到Response时会调用done.signal();唤醒
                     done.await(timeout, TimeUnit.MILLISECONDS);
+                    //完成了最好，没完成超时也要break
                     if (isDone() || System.currentTimeMillis() - start > timeout) {
                         break;
                     }
