@@ -37,10 +37,15 @@ public class CodecSupport {
     private static Map<Byte, Serialization> ID_SERIALIZATION_MAP = new HashMap<Byte, Serialization>();
     private static Map<Byte, String> ID_SERIALIZATIONNAME_MAP = new HashMap<Byte, String>();
 
+    /**
+     * 初始化所有的序列化器
+     */
     static {
+        //使用 dubbo spi 获取所有序列化器扩展
         Set<String> supportedExtensions = ExtensionLoader.getExtensionLoader(Serialization.class).getSupportedExtensions();
         for (String name : supportedExtensions) {
             Serialization serialization = ExtensionLoader.getExtensionLoader(Serialization.class).getExtension(name);
+            //获取序列化器的 唯一ID，该唯一ID会被放到Dubbo数据包的消息头里
             byte idByte = serialization.getContentTypeId();
             if (ID_SERIALIZATION_MAP.containsKey(idByte)) {
                 logger.error("Serialization extension " + serialization.getClass().getName()

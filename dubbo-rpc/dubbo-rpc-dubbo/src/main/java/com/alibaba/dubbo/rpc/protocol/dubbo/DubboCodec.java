@@ -57,11 +57,24 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
     public static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
     private static final Logger log = LoggerFactory.getLogger(DubboCodec.class);
 
+    /**
+     *
+     * get new one：
+     *  1. Dubbo provider端支持将反序列化线程与IO线程拆开
+     * @param channel
+     * @param is
+     * @param header
+     * @return
+     * @throws IOException
+     */
     @Override
     protected Object decodeBody(Channel channel, InputStream is, byte[] header) throws IOException {
+        // 获取消息头中的第三个字节，并通过逻辑与运算得到序列化器编号
         byte flag = header[2], proto = (byte) (flag & SERIALIZATION_MASK);
         // get request id.
+        // 获取调用编号
         long id = Bytes.bytes2long(header, 4);
+        // 通过逻辑与运算得到调用类型，0 - Response，1 - Request
         if ((flag & FLAG_REQUEST) == 0) {
             // decode response.
             Response res = new Response(id);
@@ -106,6 +119,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
             }
             return res;
         } else {
+            //这是一个Request数据包
             // decode request.
             Request req = new Request(id);
             req.setVersion(Version.getProtocolVersion());
@@ -121,14 +135,19 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                     data = decodeEventData(channel, CodecSupport.deserialize(channel.getUrl(), is, proto));
                 } else {
                     DecodeableRpcInvocation inv;
+                    // 根据 url 参数判断是否在 IO 线程上对消息体进行解码
                     if (channel.getUrl().getParameter(
                             Constants.DECODE_IN_IO_THREAD_KEY,
                             Constants.DEFAULT_DECODE_IN_IO_THREAD)) {
                         inv = new DecodeableRpcInvocation(channel, req, is, proto);
+                        // 在当前线程，也就是 IO 线程上进行后续的解码工作。此工作完成后，可将
+                        // 调用方法名、attachment、以及调用参数解析出来
+                        //执行 decode 逻辑
                         inv.decode();
                     } else {
                         inv = new DecodeableRpcInvocation(channel, req,
                                 new UnsafeByteArrayInputStream(readMessageData(is)), proto);
+                        //不在当前线程，也就是IO线程中执行 decode 方法
                     }
                     data = inv;
                 }
