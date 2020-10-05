@@ -75,6 +75,7 @@ public class DecodeableRpcResult extends RpcResult implements Codec, Decodeable 
                 .deserialize(channel.getUrl(), input);
         
         byte flag = in.readByte();
+        //不同类型的Response
         switch (flag) {
             case DubboCodec.RESPONSE_NULL_VALUE:
                 break;
@@ -99,18 +100,24 @@ public class DecodeableRpcResult extends RpcResult implements Codec, Decodeable 
                 }
                 break;
             case DubboCodec.RESPONSE_NULL_VALUE_WITH_ATTACHMENTS:
+                // 返回值为空，且携带了 attachments 集合
                 try {
+                    // 反序列化 attachments 集合，并存储起来
                     setAttachments((Map<String, String>) in.readObject(Map.class));
                 } catch (ClassNotFoundException e) {
                     throw new IOException(StringUtils.toString("Read response data failed.", e));
                 }
                 break;
             case DubboCodec.RESPONSE_VALUE_WITH_ATTACHMENTS:
+                // 返回值不为空，且携带了 attachments 集合
                 try {
+                    // 获取返回值类型
                     Type[] returnType = RpcUtils.getReturnTypes(invocation);
+                    // 反序列化调用结果，并保存起来
                     setValue(returnType == null || returnType.length == 0 ? in.readObject() :
                             (returnType.length == 1 ? in.readObject((Class<?>) returnType[0])
                                     : in.readObject((Class<?>) returnType[0], returnType[1])));
+                    // 反序列化 attachments 集合，并存储起来
                     setAttachments((Map<String, String>) in.readObject(Map.class));
                 } catch (ClassNotFoundException e) {
                     throw new IOException(StringUtils.toString("Read response data failed.", e));
@@ -122,6 +129,7 @@ public class DecodeableRpcResult extends RpcResult implements Codec, Decodeable 
                     if (obj instanceof Throwable == false)
                         throw new IOException("Response data error, expect Throwable, but get " + obj);
                     setException((Throwable) obj);
+                    // 反序列化 attachments 集合，并存储起来
                     setAttachments((Map<String, String>) in.readObject(Map.class));
                 } catch (ClassNotFoundException e) {
                     throw new IOException(StringUtils.toString("Read response data failed.", e));
