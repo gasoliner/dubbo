@@ -242,6 +242,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
         if (attach) {
             // returns current version of Response to consumer side.
             result.getAttachments().put(Constants.DUBBO_VERSION_KEY, Version.getProtocolVersion());
+            // 序列化 attachments 集合
             out.writeObject(result.getAttachments());
         }
     }
