@@ -55,6 +55,12 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         this.handler = handler;
     }
 
+    /**
+     * 从map缓存中拿到对应的DefaultFuture，将响应设置进去，然后唤醒用户线程（这时用户线程如果阻塞在 future.get() 处就可以继续执行了）
+     * @param channel
+     * @param response
+     * @throws RemotingException
+     */
     static void handleResponse(Channel channel, Response response) throws RemotingException {
         if (response != null && !response.isHeartbeat()) {
             DefaultFuture.received(channel, response);

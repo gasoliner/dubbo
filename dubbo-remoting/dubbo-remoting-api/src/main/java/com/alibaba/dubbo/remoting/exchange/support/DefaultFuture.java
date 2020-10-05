@@ -117,6 +117,8 @@ public class DefaultFuture implements ResponseFuture {
 
     public static void received(Channel channel, Response response) {
         try {
+            //可以看到 使用 request.getId() 拿到对应的 future
+            //可以保证调用前调用后都对应一个future，在客户端同时发起多个RPC请求时不会造成调用链路乱套
             DefaultFuture future = FUTURES.remove(response.getId());
             if (future != null) {
                 future.doReceived(response);
@@ -279,6 +281,10 @@ public class DefaultFuture implements ResponseFuture {
         sent = System.currentTimeMillis();
     }
 
+    /**
+     * 设置好响应，唤醒用户线程
+     * @param res
+     */
     private void doReceived(Response res) {
         lock.lock();
         try {
