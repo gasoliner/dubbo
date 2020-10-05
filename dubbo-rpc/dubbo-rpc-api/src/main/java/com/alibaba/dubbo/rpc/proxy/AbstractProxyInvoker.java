@@ -73,6 +73,8 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         try {
+            // 调用 doInvoke 执行后续的调用，
+            //Invoker 实例是在运行时通过 JavassistProxyFactory 创建的，创建逻辑在：JavassistProxyFactory#getInvoker()
             return new RpcResult(doInvoke(proxy, invocation.getMethodName(), invocation.getParameterTypes(), invocation.getArguments()));
         } catch (InvocationTargetException e) {
             return new RpcResult(e.getTargetException());

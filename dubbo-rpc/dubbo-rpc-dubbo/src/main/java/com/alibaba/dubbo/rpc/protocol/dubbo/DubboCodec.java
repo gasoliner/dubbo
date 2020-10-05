@@ -59,7 +59,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
 
     /**
      *
-     * get new one：
+     * get_new_one：
      *  1. Dubbo provider端支持将反序列化线程与IO线程拆开
      * @param channel
      * @param is
@@ -98,11 +98,15 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                                 Constants.DEFAULT_DECODE_IN_IO_THREAD)) {
                             result = new DecodeableRpcResult(channel, res, is,
                                     (Invocation) getRequestData(id), proto);
+                            //在当前线程、也就是IO线程中执行解码操作
+                            //解码操作是 com.alibaba.dubbo.remoting.Decodeable#decode
+                            //否则就会在 线程池中的 DecodeHandler中调用 com.alibaba.dubbo.remoting.Decodeable#decode
                             result.decode();
                         } else {
                             result = new DecodeableRpcResult(channel, res,
                                     new UnsafeByteArrayInputStream(readMessageData(is)),
                                     (Invocation) getRequestData(id), proto);
+                            //com.alibaba.dubbo.remoting.Decodeable#decode方法去线程池中的DecodeHandler中调用
                         }
                         data = result;
                     }

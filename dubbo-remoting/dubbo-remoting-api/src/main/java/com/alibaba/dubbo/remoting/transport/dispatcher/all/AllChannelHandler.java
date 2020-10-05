@@ -30,6 +30,18 @@ import com.alibaba.dubbo.remoting.transport.dispatcher.WrappedChannelHandler;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 
+/**
+ * 官方文档：https://dubbo.apache.org/zh-cn/docs/source_code_guide/service-invoking-process.html
+ *
+ * Dubbo线程派发模型：
+     * Dubbo 将底层通信框架中接收请求的线程称为 IO 线程。如果一些事件处理逻辑可以很快执行完，比如只在内存打一个标记，
+     * 此时直接在 IO 线程上执行该段逻辑即可。但如果事件的处理逻辑比较耗时，比如该段逻辑会发起数据库查询或者 HTTP 请求。
+     * 此时我们就不应该让事件处理逻辑在 IO 线程上执行，而是应该派发到线程池中去执行。
+     * 原因也很简单，IO 线程主要用于接收请求，如果 IO 线程被占满，将导致它不能接收新的请求。
+ * Dubbo 有5种线程派发策略：all、direct、message、execution、connection，默认使用 all 策略，也就是所有消息都派发到线程池中执行，包括
+ *      请求、响应、连接事件、断开事件
+ *
+ */
 public class AllChannelHandler extends WrappedChannelHandler {
 
     public AllChannelHandler(ChannelHandler handler, URL url) {
@@ -40,6 +52,7 @@ public class AllChannelHandler extends WrappedChannelHandler {
     public void connected(Channel channel) throws RemotingException {
         ExecutorService cexecutor = getExecutorService();
         try {
+            //连接事件 也放到线程池中执行
             cexecutor.execute(new ChannelEventRunnable(channel, handler, ChannelState.CONNECTED));
         } catch (Throwable t) {
             throw new ExecutionException("connect event", channel, getClass() + " error when process connected event .", t);
@@ -50,27 +63,39 @@ public class AllChannelHandler extends WrappedChannelHandler {
     public void disconnected(Channel channel) throws RemotingException {
         ExecutorService cexecutor = getExecutorService();
         try {
+            //断开连接事件 也放到线程池中执行
             cexecutor.execute(new ChannelEventRunnable(channel, handler, ChannelState.DISCONNECTED));
         } catch (Throwable t) {
             throw new ExecutionException("disconnect event", channel, getClass() + " error when process disconnected event .", t);
         }
     }
 
+    /**
+     * 请求和相应在这里处理
+     * @param channel
+     * @param message
+     * @throws RemotingException
+     */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         ExecutorService cexecutor = getExecutorService();
         try {
+            //将请求和相应信息派发到线程池中处理
             cexecutor.execute(new ChannelEventRunnable(channel, handler, ChannelState.RECEIVED, message));
         } catch (Throwable t) {
             //TODO A temporary solution to the problem that the exception information can not be sent to the opposite end after the thread pool is full. Need a refactoring
             //fix The thread pool is full, refuses to call, does not return, and causes the consumer to wait for time out
+            //JDK线程池执行拒绝策略
         	if(message instanceof Request && t instanceof RejectedExecutionException){
         		Request request = (Request)message;
+        		//如果请求方式为双向
+                //则把"线程池任务满了"的错误信息传回给consumer端
         		if(request.isTwoWay()){
         			String msg = "Server side(" + url.getIp() + "," + url.getPort() + ") threadpool is exhausted ,detail msg:" + t.getMessage();
         			Response response = new Response(request.getId(), request.getVersion());
         			response.setStatus(Response.SERVER_THREADPOOL_EXHAUSTED_ERROR);
         			response.setErrorMessage(msg);
+                    // 返回包含错误信息的 Response 对象
         			channel.send(response);
         			return;
         		}
@@ -79,6 +104,7 @@ public class AllChannelHandler extends WrappedChannelHandler {
         }
     }
 
+    /** 处理异常信息 */
     @Override
     public void caught(Channel channel, Throwable exception) throws RemotingException {
         ExecutorService cexecutor = getExecutorService();

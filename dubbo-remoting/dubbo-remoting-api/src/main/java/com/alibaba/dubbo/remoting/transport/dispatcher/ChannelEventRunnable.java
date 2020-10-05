@@ -50,10 +50,28 @@ public class ChannelEventRunnable implements Runnable {
         this.exception = exception;
     }
 
+    /**
+     * 事件处理的新起点(不过他也是个中转站)
+     *
+     * 这里的调用栈如下：
+     * ChannelEventRunnable#run()
+     *   —> DecodeHandler#received(Channel, Object)//实现在线程池线程中进行消息体解码(调用 Decodeable#decode())
+     *     —> HeaderExchangeHandler#received(Channel, Object)//判断是数据包类型，中转站向后调用服务
+     *       —> HeaderExchangeHandler#handleRequest(ExchangeChannel, Request)//中转站，调用ExchangeHandlerAdapter#reply
+     *         —> DubboProtocol.requestHandler#reply(ExchangeChannel, Object)//获取invoker实例，调用invoker.invoke()
+     *           —> Filter#invoke(Invoker, Invocation)//责任链模式的filter chain
+     *             —> AbstractProxyInvoker#invoke(Invocation)
+     *               —> Wrapper0#invokeMethod(Object, String, Class[], Object[])//由JavassistProxyFactory生成继承于
+     *                                                                          //Wrapper类的代理类，在该类的invokeMethod中
+     *                                                                          //调用demoService#sayHello()【也是通过拼接原始code，然后javassist.toClass的方式】
+     *                 —> DemoServiceImpl#sayHello(String)
+     */
     @Override
     public void run() {
         if (state == ChannelState.RECEIVED) {
             try {
+                // 将 channel 和 message 传给 ChannelHandler 对象，进行后续的调用
+                // 这里的handler指向 DecoderHandler
                 handler.received(channel, message);
             } catch (Exception e) {
                 logger.warn("ChannelEventRunnable handle " + state + " operation error, channel is " + channel

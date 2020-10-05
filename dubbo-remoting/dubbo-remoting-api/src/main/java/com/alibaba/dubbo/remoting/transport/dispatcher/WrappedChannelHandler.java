@@ -54,6 +54,7 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
         this.url = url;
 
         String componentKey;
+        //判断消息是从哪一端来的
         if (Constants.CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(Constants.SIDE_KEY))) {
             componentKey = Constants.CONSUMER_SIDE;
             if (url.getParameter(SHARE_EXECUTOR_KEY, false)) {
@@ -70,6 +71,9 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
             }
         } else {
             componentKey = Constants.EXECUTOR_SERVICE_COMPONENT_KEY;
+            /*
+              自适应扩展获取，默认是 fixed=com.alibaba.dubbo.common.threadpool.support.fixed.FixedThreadPool
+             */
             executor = (ExecutorService) ExtensionLoader.getExtensionLoader(ThreadPool.class).getAdaptiveExtension().getExecutor(url);
             dataStore.put(componentKey, Integer.toString(url.getPort()), executor);
         }

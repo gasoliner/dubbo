@@ -33,6 +33,12 @@ import java.util.concurrent.TimeUnit;
  *
  * @see java.util.concurrent.Executors#newFixedThreadPool(int)
  */
+
+/**
+ * get_new_one:
+ * 1.dubbo允许设置Executor使用哪种queue，方式是编号：
+ *      ==0是SynchronousQueue，<0是LinkedBlockingQueue，>0是定长的LinkedBlockingQueue
+ */
 public class FixedThreadPool implements ThreadPool {
 
     @Override

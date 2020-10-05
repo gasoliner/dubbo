@@ -35,6 +35,23 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * NettyHandler
  */
+
+/**
+ *
+ * 官方文档：https://dubbo.apache.org/zh-cn/docs/source_code_guide/service-invoking-process.html
+ * provider端调用服务逻辑调用栈：
+ * NettyHandler#messageReceived(ChannelHandlerContext, MessageEvent)
+ *   —> AbstractPeer#received(Channel, Object)
+ *     —> MultiMessageHandler#received(Channel, Object)
+ *       —> HeartbeatHandler#received(Channel, Object)
+ *         —> AllChannelHandler#received(Channel, Object)
+ *           —> ExecutorService#execute(Runnable)    // 由线程池执行后续的调用逻辑
+ */
+
+/**
+ * Netty的基本用法，继承 netty.SimpleChannelHandler，实现一些重要方法
+ *
+ */
 @Sharable
 public class NettyHandler extends SimpleChannelHandler {
 
@@ -42,6 +59,7 @@ public class NettyHandler extends SimpleChannelHandler {
 
     private final URL url;
 
+    // dubbo.ChannelHandler，这里的 handler 类型为 NettyServer
     private final ChannelHandler handler;
 
     public NettyHandler(URL url, ChannelHandler handler) {
@@ -83,10 +101,19 @@ public class NettyHandler extends SimpleChannelHandler {
         }
     }
 
+    /**
+     * 接受到消息后Netty会回调这个方法
+     * @param ctx
+     * @param e
+     * @throws Exception
+     */
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+        // 获取 dubbo.NettyChannel
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.getChannel(), url, handler);
         try {
+            //这里的 handler 是 dubbo.nettyServer
+            //开始处理消息
             handler.received(channel, e.getMessage());
         } finally {
             NettyChannel.removeChannelIfDisconnected(ctx.getChannel());

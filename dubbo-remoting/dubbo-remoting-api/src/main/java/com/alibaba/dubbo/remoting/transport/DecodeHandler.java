@@ -26,6 +26,11 @@ import com.alibaba.dubbo.remoting.RemotingException;
 import com.alibaba.dubbo.remoting.exchange.Request;
 import com.alibaba.dubbo.remoting.exchange.Response;
 
+/**
+ * DecodeHandler 存在的意义就是保证请求或响应对象可在线程池中被解码，
+ * 也就是调用了一下com.alibaba.dubbo.remoting.Decodeable#decode()方法，
+ * 需要在IO线程上解码的操作已经在 DubboCodec#decodeBody()方法中执行了
+ */
 public class DecodeHandler extends AbstractChannelHandlerDelegate {
 
     private static final Logger log = LoggerFactory.getLogger(DecodeHandler.class);
@@ -37,17 +42,21 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         if (message instanceof Decodeable) {
+            // 对 Decodeable 接口实现类对象进行解码
             decode(message);
         }
 
         if (message instanceof Request) {
+            // 对 Request 的 data 字段进行解码
             decode(((Request) message).getData());
         }
 
         if (message instanceof Response) {
+            // 对 Response 的 result 字段进行解码
             decode(((Response) message).getResult());
         }
 
+        //下一站是 HeaderExchangeHandler
         handler.received(channel, message);
     }
 

@@ -38,12 +38,16 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
+        //通过拼接原始code，然后调用javassist生成代理的Wrapper子类，实现了Wrapper#invokeMethod
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
         return new AbstractProxyInvoker<T>(proxy, type, url) {
             @Override
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
+                // 调用 invokeMethod 方法进行后续的调用
+                // Wrapper 是一个抽象类，其中 invokeMethod 只实现了一些Object的方法。Dubbo 会在运行时通过 Javassist
+                // 框架为 Wrapper 生成实现类，并重写 invokeMethod 方法，该方法最终会根据调用信息调用具体的服务。
                 return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
             }
         };

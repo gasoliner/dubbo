@@ -110,6 +110,11 @@ public abstract class Wrapper {
         return ret;
     }
 
+    /**
+     * 生成代理的Wrapper类，在该类中会调用 原始的服务方法(#sayHello())
+     * @param c
+     * @return
+     */
     private static Wrapper makeWrapper(Class<?> c) {
         if (c.isPrimitive())
             throw new IllegalArgumentException("Can not create wrapper for primitive type: " + c);
@@ -178,6 +183,7 @@ public abstract class Wrapper {
             if (m.getReturnType() == Void.TYPE)
                 c3.append(" w.").append(mn).append('(').append(args(m.getParameterTypes(), "$4")).append(");").append(" return null;");
             else
+                //return (DemoService)w.sayHello((String)arrobject[0])
                 c3.append(" return ($w)w.").append(mn).append('(').append(args(m.getParameterTypes(), "$4")).append(");");
 
             c3.append(" }");
@@ -242,6 +248,7 @@ public abstract class Wrapper {
         cc.addMethod(c3.toString());
 
         try {
+            //调用javassist生成动态类
             Class<?> wc = cc.toClass();
             // setup static field.
             wc.getField("pts").set(null, pts);
