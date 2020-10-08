@@ -173,6 +173,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 }
                 if (address.length() > 0 && !RegistryConfig.NO_AVAILABLE.equalsIgnoreCase(address)) {
                     Map<String, String> map = new HashMap<String, String>();
+                    // 通过反射将对象的字段信息添加到 map 中
                     appendParameters(map, application);
                     appendParameters(map, config);
                     map.put("path", RegistryService.class.getName());

@@ -50,6 +50,16 @@ import static com.alibaba.dubbo.config.spring.util.BeanFactoryUtils.addApplicati
  *
  * @export
  */
+
+/**
+ * ServiceBean 是 Dubbo 与 Spring 框架进行整合的关键，可以看做是两个框架之间的桥梁。具有同样作用的类还有 ReferenceBean。
+ * 在 ServiceAnnotationBeanPostProcessor 中扫描Service注解，包装成ServiceBean注册到了BeanDefinitionRegistry当中
+ * 一个Service对应一个ServiceBean
+ *
+ * get_new_one:
+ *  1.ServiceBean的onApplicationEvent方法是服务导出的入口方法
+ * @param <T>
+ */
 public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean, DisposableBean,
         ApplicationContextAware, ApplicationListener<ContextRefreshedEvent>, BeanNameAware,
         ApplicationEventPublisherAware {
@@ -62,6 +72,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
 
     private transient String beanName;
 
+    //表示当前的 Spring 容器是否支持 ApplicationListener
     private transient boolean supportedApplicationListener;
 
     private ApplicationEventPublisher applicationEventPublisher;
@@ -97,8 +108,13 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
         return service;
     }
 
+    /**
+     * 服务导出的入口方法，每次Spring发布 refresh事件都会执行
+     * @param event
+     */
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
+        // 是否有延迟导出  是否已导出  是不是已被取消导出
         if (isDelay() && !isExported() && !isUnexported()) {
             if (logger.isInfoEnabled()) {
                 logger.info("The service ready on spring started. service: " + getInterface());
@@ -107,6 +123,9 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
         }
     }
 
+    /**
+     * 当方法返回 true 时，表示无需延迟导出。返回 false 时，表示需要延迟导出
+     */
     private boolean isDelay() {
         Integer delay = getDelay();
         ProviderConfig provider = getProvider();

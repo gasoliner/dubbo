@@ -168,6 +168,11 @@ public abstract class AbstractConfig implements Serializable {
         return tag;
     }
 
+    /**
+     * 通过反射将对象的字段信息添加到 map 中
+     * @param parameters
+     * @param config
+     */
     protected static void appendParameters(Map<String, String> parameters, Object config) {
         appendParameters(parameters, config, null);
     }

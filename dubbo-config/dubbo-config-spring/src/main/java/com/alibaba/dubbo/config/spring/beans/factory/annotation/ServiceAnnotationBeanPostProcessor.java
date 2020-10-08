@@ -70,6 +70,16 @@ import static org.springframework.util.ClassUtils.resolveClassName;
  *
  * @since 2.5.8
  */
+
+/**
+ * get_new_one：
+ *  1. 新学到扩展点 BeanDefinitionRegistryPostProcessor，
+ *     它是BeanFactoryPostProcessor的子接口，但是执行早于BeanFactoryPostProcessor，可以理解为处理BeanDefinition用的
+ */
+
+/**
+ * Service注解处理器，检测哪些类有@Service注解，将其包装成ServiceBean注册到BeanDefinitionRegistry
+ */
 public class ServiceAnnotationBeanPostProcessor implements BeanDefinitionRegistryPostProcessor, EnvironmentAware,
         ResourceLoaderAware, BeanClassLoaderAware {
 
@@ -141,6 +151,9 @@ public class ServiceAnnotationBeanPostProcessor implements BeanDefinitionRegistr
             if (!CollectionUtils.isEmpty(beanDefinitionHolders)) {
 
                 for (BeanDefinitionHolder beanDefinitionHolder : beanDefinitionHolders) {
+                    //将自定义的Service注册到Spring容器中
+                    //这里也可以看出，我们的服务实现类只需要加@Service注解就可以
+                    //dubbo会将其注册到Spring容器中去的
                     registerServiceBean(beanDefinitionHolder, registry, scanner);
                 }
 
@@ -253,6 +266,7 @@ public class ServiceAnnotationBeanPostProcessor implements BeanDefinitionRegistr
 
         String annotatedServiceBeanName = beanDefinitionHolder.getBeanName();
 
+        //构建 ServiceBean 的 BeanDefinition
         AbstractBeanDefinition serviceBeanDefinition =
                 buildServiceBeanDefinition(service, interfaceClass, annotatedServiceBeanName);
 
@@ -260,6 +274,7 @@ public class ServiceAnnotationBeanPostProcessor implements BeanDefinitionRegistr
         String beanName = generateServiceBeanName(service, interfaceClass, annotatedServiceBeanName);
 
         if (scanner.checkCandidate(beanName, serviceBeanDefinition)) { // check duplicated candidate bean
+            //注册到 Spring 的 BeanDefinitionRegistry 当中
             registry.registerBeanDefinition(beanName, serviceBeanDefinition);
 
             if (logger.isInfoEnabled()) {
@@ -363,6 +378,7 @@ public class ServiceAnnotationBeanPostProcessor implements BeanDefinitionRegistr
     private AbstractBeanDefinition buildServiceBeanDefinition(Service service, Class<?> interfaceClass,
                                                               String annotatedServiceBeanName) {
 
+        //这里创建 ServiceBean 的 BeanDefinitionBuilder
         BeanDefinitionBuilder builder = rootBeanDefinition(ServiceBean.class);
 
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
