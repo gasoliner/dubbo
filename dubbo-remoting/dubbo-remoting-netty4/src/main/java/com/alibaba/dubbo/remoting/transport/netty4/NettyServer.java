@@ -92,6 +92,7 @@ public class NettyServer extends AbstractServer implements Server {
                     }
                 });
         // bind
+        // 绑定到指定的 ip 和端口上
         ChannelFuture channelFuture = bootstrap.bind(getBindAddress());
         channelFuture.syncUninterruptibly();
         channel = channelFuture.channel();

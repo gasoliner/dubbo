@@ -85,6 +85,8 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         url = url.setPath(RegistryService.class.getName())
                 .addParameter(Constants.INTERFACE_KEY, RegistryService.class.getName())
                 .removeParameters(Constants.EXPORT_KEY, Constants.REFER_KEY);
+        //生成缓存的key
+        //实例：zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService
         String key = url.toServiceStringWithoutResolving();
         // Lock the registry access process to ensure a single instance of the registry
         LOCK.lock();
@@ -93,6 +95,7 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
             if (registry != null) {
                 return registry;
             }
+            //没有该键的缓存
             registry = createRegistry(url);
             if (registry == null) {
                 throw new IllegalStateException("Can not create registry " + url);

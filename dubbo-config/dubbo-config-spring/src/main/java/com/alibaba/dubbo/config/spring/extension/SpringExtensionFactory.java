@@ -35,6 +35,10 @@ import java.util.Set;
 /**
  * SpringExtensionFactory
  */
+
+/**
+ * 支持从SpringIOC容器内寻找需要的扩展
+ */
 public class SpringExtensionFactory implements ExtensionFactory {
     private static final Logger logger = LoggerFactory.getLogger(SpringExtensionFactory.class);
 

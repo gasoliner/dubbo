@@ -54,6 +54,9 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
                 builder = builder.authorization("digest", authority.getBytes());
             }
             client = builder.build();
+
+            // 添加监听器
+            // dubbo对监听器又包装了一层
             client.getConnectionStateListenable().addListener(new ConnectionStateListener() {
                 @Override
                 public void stateChanged(CuratorFramework client, ConnectionState state) {
@@ -62,10 +65,13 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
                     } else if (state == ConnectionState.CONNECTED) {
                         CuratorZookeeperClient.this.stateChanged(StateListener.CONNECTED);
                     } else if (state == ConnectionState.RECONNECTED) {
+                        // ZookeeperRegistry只会处理这种事件 RECONNECTED
                         CuratorZookeeperClient.this.stateChanged(StateListener.RECONNECTED);
                     }
                 }
             });
+
+            // 启动客户端
             client.start();
         } catch (Exception e) {
             throw new IllegalStateException(e.getMessage(), e);
@@ -85,6 +91,7 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
     @Override
     public void createEphemeral(String path) {
         try {
+            // 通过 Curator 框架创建节点
             client.create().withMode(CreateMode.EPHEMERAL).forPath(path);
         } catch (NodeExistsException e) {
         } catch (Exception e) {

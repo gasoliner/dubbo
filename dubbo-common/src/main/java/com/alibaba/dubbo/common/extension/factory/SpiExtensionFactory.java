@@ -23,6 +23,10 @@ import com.alibaba.dubbo.common.extension.SPI;
 /**
  * SpiExtensionFactory
  */
+
+/**
+ * 支持自适应的扩展获取
+ */
 public class SpiExtensionFactory implements ExtensionFactory {
 
     @Override

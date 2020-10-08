@@ -46,6 +46,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
 
     public static String KEY_WRITE_TIMESTAMP = HeartbeatHandler.KEY_WRITE_TIMESTAMP;
 
+    //如果是Dubbo协议，持有的是 DubboProtocol的匿名类实例(DubboProtocol.73)
     private final ExchangeHandler handler;
 
     public HeaderExchangeHandler(ExchangeHandler handler) {
