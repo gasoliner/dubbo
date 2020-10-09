@@ -27,6 +27,9 @@ import com.alibaba.dubbo.remoting.buffer.ChannelBuffer;
 
 import java.io.IOException;
 
+/**
+ * Codec接口和Codec2接口的兼容类
+ */
 public class CodecAdapter implements Codec2 {
 
     private Codec codec;
