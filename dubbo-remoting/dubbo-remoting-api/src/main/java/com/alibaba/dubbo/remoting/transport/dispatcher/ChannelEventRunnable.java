@@ -68,6 +68,9 @@ public class ChannelEventRunnable implements Runnable {
      */
     @Override
     public void run() {
+        //一个ChannelEventRunnable被创建后，接到的事件99.999%都是RECEIVED，所以这里利用了CPU的分支预测
+        //提升CPU运行效率
+        //官方博客文章：https://dubbo.apache.org/zh-cn/blog/optimization-branch-prediction.html
         if (state == ChannelState.RECEIVED) {
             try {
                 // 将 channel 和 message 传给 ChannelHandler 对象，进行后续的调用
