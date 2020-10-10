@@ -25,6 +25,32 @@ import java.lang.reflect.Method;
 /**
  * InvokerHandler
  */
+
+/**
+ * consumer调用的起始点
+ *  dubbo会对每个consumer类使用（拼接proxy类代码+javassist编译）的方式实现一个代理类
+ *  代理类实现 api-interface，在实现方法上会调用 本类中的 invoke方法，所以这里的invoke是consumer调用的起始点
+ *
+ *  调用栈如下：
+     * introduceYourSelf:-1, proxy0 
+         * invoke:74, InvokerInvocationHandler 
+             * invoke:82, MockClusterInvoker 
+                * invoke:92, AbstractCluster$InterceptorInvokerNode 
+                    * intercept:47, ClusterInterceptor 
+                        * invoke:259, AbstractClusterInvoker 
+                             * doInvoke:82, FailoverClusterInvoker 
+                                 * invoke:56, InvokerWrapper 
+                                     * invoke:78, ListenerInvokerWrapper 
+                                         * invoke:81, ProtocolFilterWrapper$1 
+                                             * invoke:55, ConsumerContextFilter 
+                                                 * invoke:81, ProtocolFilterWrapper$1 
+                                                    * invoke:51, FutureFilter 
+                                                        * invoke:81, ProtocolFilterWrapper$1 
+                                                            * invoke:89, MonitorFilter 
+                                                                 * invoke:52, AsyncToSyncInvoker
+                                                                     * invoke:162, AbstractInvoker
+                                                                        * doInvoke:79, DubboInvoker
+ */
 public class InvokerInvocationHandler implements InvocationHandler {
 
     private final Invoker<?> invoker;
@@ -40,6 +66,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
         if (method.getDeclaringClass() == Object.class) {
             return method.invoke(invoker, args);
         }
+        //本地方法直接在本地执行
         if ("toString".equals(methodName) && parameterTypes.length == 0) {
             return invoker.toString();
         }
@@ -49,6 +76,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
         if ("equals".equals(methodName) && parameterTypes.length == 1) {
             return invoker.equals(args[0]);
         }
+        // 这里的 invoker 指向 MockClusterInvoker
         return invoker.invoke(new RpcInvocation(method, args)).recreate();
     }
 

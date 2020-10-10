@@ -96,6 +96,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         inv.setAttachment(Constants.PATH_KEY, getUrl().getPath());
         inv.setAttachment(Constants.VERSION_KEY, version);
 
+        //默认计算出的 currentClient 为 ReferenceCountExchangeClient实例
         ExchangeClient currentClient;
         if (clients.length == 1) {
             currentClient = clients[0];

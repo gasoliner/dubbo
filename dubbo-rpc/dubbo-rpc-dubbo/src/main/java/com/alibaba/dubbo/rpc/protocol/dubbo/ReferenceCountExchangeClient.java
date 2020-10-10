@@ -66,6 +66,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
 
     @Override
     public ResponseFuture request(Object request) throws RemotingException {
+        // 这里持有的client是HeaderExchangeClient
         return client.request(request);
     }
 

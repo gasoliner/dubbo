@@ -77,6 +77,7 @@ public class HeaderExchangeClient implements ExchangeClient {
 
     @Override
     public ResponseFuture request(Object request) throws RemotingException {
+        // 这里持有的channel指向HeaderExchangeChannel
         return channel.request(request);
     }
 
