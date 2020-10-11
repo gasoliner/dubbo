@@ -72,8 +72,10 @@ public class Transporters {
         } else if (handlers.length == 1) {
             handler = handlers[0];
         } else {
+            // 如果 handler 数量大于1，则创建一个 ChannelHandler 分发器
             handler = new ChannelHandlerDispatcher(handlers);
         }
+        // Adaptive SPI 根据 url 使用对应的Transporter实现类，默认是netty
         return getTransporter().connect(url, handler);
     }
 

@@ -36,6 +36,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * dubbo protocol support class.
+ *
+ * 该类会在 request 方法被调用时通过 Exchangers 的 connect 方法创建 ExchangeClient 客户端
  */
 @SuppressWarnings("deprecation")
 final class LazyConnectExchangeClient implements ExchangeClient {

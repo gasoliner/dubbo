@@ -368,10 +368,25 @@ public class DubboProtocol extends AbstractProtocol {
         }
     }
 
+    /**
+     * 主要逻辑是获取客户端，将客户端包装成invoker返回
+     *  获取客户端：
+     *      判断创建客户端 是否共享？ 是否延迟加载？
+     *      创建Exchange层客户端
+     *      创建一些功能性的ChannelHandler
+     *      创建Transport层客户端
+     *      创建NettyClient对象并完成初始化
+     * @param serviceType
+     * @param url  URL address for the remote service
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> Invoker<T> refer(Class<T> serviceType, URL url) throws RpcException {
         optimizeSerialization(url);
         // create rpc invoker.
+        // DubboInvoker在发起远程调用时使用客户端选择不同的发送方式（oneway/async/sync）将消息发送出去
         DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
         invokers.add(invoker);
         return invoker;
@@ -387,11 +402,14 @@ public class DubboProtocol extends AbstractProtocol {
             connections = 1;
         }
 
+        //根据 connections 数量决定是获取共享客户端还是创建新的客户端实例
         ExchangeClient[] clients = new ExchangeClient[connections];
         for (int i = 0; i < clients.length; i++) {
             if (service_share_connect) {
+                //获取共享客户端
                 clients[i] = getSharedClient(url);
             } else {
+                //初始化新客户端
                 clients[i] = initClient(url);
             }
         }
@@ -403,9 +421,11 @@ public class DubboProtocol extends AbstractProtocol {
      */
     private ExchangeClient getSharedClient(URL url) {
         String key = url.getAddress();
+        // 获取带有“引用计数”功能的 ExchangeClient
         ReferenceCountExchangeClient client = referenceClientMap.get(key);
         if (client != null) {
             if (!client.isClosed()) {
+                // 引用计数
                 client.incrementAndGetCount();
                 return client;
             } else {
@@ -420,9 +440,16 @@ public class DubboProtocol extends AbstractProtocol {
             }
 
             ExchangeClient exchangeClient = initClient(url);
+            // 使用了装饰模式将ExchangeClient加上计数的功能
             client = new ReferenceCountExchangeClient(exchangeClient, ghostClientMap);
             referenceClientMap.put(key, client);
             ghostClientMap.remove(key);
+            //为了避免无效的key占用内存空间不释放
+            //TODO 有个疑问，如果有以下情况出现，不就 npe 了吗？
+            //thread A 执行 locks.putIfAbsent(key, new Object())
+            //thread B 执行 locks.remove(key)
+            //thread A 执行 locks.get(key) 这里可能会抛出 npe？
+            //摘自 github https://github.com/apache/dubbo/issues/5987#issuecomment-612536637
             locks.remove(key);
             return client;
         }
@@ -434,6 +461,7 @@ public class DubboProtocol extends AbstractProtocol {
     private ExchangeClient initClient(URL url) {
 
         // client type setting.
+        // 获取客户端类型，默认是netty
         String str = url.getParameter(Constants.CLIENT_KEY, url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_CLIENT));
 
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
@@ -450,8 +478,11 @@ public class DubboProtocol extends AbstractProtocol {
         try {
             // connection should be lazy
             if (url.getParameter(Constants.LAZY_CONNECT_KEY, false)) {
+                // 创建懒加载 ExchangeClient 实例
+                // 该类会在 request 方法被调用时通过 Exchangers 的 connect 方法创建 ExchangeClient 客户端
                 client = new LazyConnectExchangeClient(url, requestHandler);
             } else {
+                // 创建普通 ExchangeClient 实例
                 client = Exchangers.connect(url, requestHandler);
             }
         } catch (RemotingException e) {

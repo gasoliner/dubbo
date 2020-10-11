@@ -34,6 +34,9 @@ public class SpiExtensionFactory implements ExtensionFactory {
         if (type.isInterface() && type.isAnnotationPresent(SPI.class)) {
             ExtensionLoader<T> loader = ExtensionLoader.getExtensionLoader(type);
             if (!loader.getSupportedExtensions().isEmpty()) {
+                //注意这里返回的是 Adaptive的SPI
+                //也就是说dubbo的spi ioc注入的属性是自适应的拓展实例
+                //比如在 RegistryProtocol 类的 cluster 属性就是通过 dubbo spi ioc 注入的 AdaptiveSPI
                 return loader.getAdaptiveExtension();
             }
         }

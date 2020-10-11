@@ -118,6 +118,15 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
         }
     }
 
+    /**
+     * 使用装饰器模式装饰当前ChannelHandler，分别是
+     *      1.AllChannelHandler 线程派发相关
+     *      2.HeartbeatHandler 心跳相关
+     *      3.MultiMessageHandler
+     * @param url
+     * @param handler
+     * @return
+     */
     protected static ChannelHandler wrapChannelHandler(URL url, ChannelHandler handler) {
         url = ExecutorUtil.setThreadName(url, CLIENT_THREAD_POOL_NAME);
         url = url.addParameterIfAbsent(Constants.THREADPOOL_KEY, Constants.DEFAULT_CLIENT_THREADPOOL);

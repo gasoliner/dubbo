@@ -108,6 +108,8 @@ public class Exchangers {
             throw new IllegalArgumentException("handler == null");
         }
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
+        // 获取 Exchanger 实例，默认为 HeaderExchangeClient
+        // TODO 疑问 这里的getExchanger为什么不用自适应的SPI？是因为目前Exchanger目前只有HeaderExchanger实现，不值得再额外创建一个自适应类了吗？
         return getExchanger(url).connect(url, handler);
     }
 

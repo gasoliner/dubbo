@@ -34,6 +34,9 @@ public class NettyClientHandler extends ChannelDuplexHandler {
 
     private final URL url;
 
+    //这里的handler指向NettyClient
+    //NettyClient（的父类AbstractPeer）持有真正处理数据的Handler
+    //在对应的方法会调用真正处理数据的Handler的对应方法
     private final ChannelHandler handler;
 
     public NettyClientHandler(URL url, ChannelHandler handler) {
@@ -69,17 +72,33 @@ public class NettyClientHandler extends ChannelDuplexHandler {
         }
     }
 
+    /**
+     * 接收到数据
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         try {
+            //这里的handler指向NettyClient
+            //NettyClient（的父类AbstractPeer）持有真正处理数据的Handler
+            //所以这里的received对应着AbstractPeer#received方法
+            //可以看到在AbstractPeer中调用了真正处理数据的Handler#received方法
             handler.received(channel, msg);
         } finally {
             NettyChannel.removeChannelIfDisconnected(ctx.channel());
         }
     }
 
-
+    /**
+     * 写数据
+     * @param ctx
+     * @param msg
+     * @param promise
+     * @throws Exception
+     */
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         super.write(ctx, msg, promise);

@@ -208,6 +208,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             }
             checkInterfaceAndMethods(interfaceClass, methods);
         }
+        // -------------------------------✨ 分割线1 ✨------------------------------
+        /*
+         * 从系统属性或者文件中获取与 当前interface 相对应的配置，将解析结果赋值给url
+         */
         String resolve = System.getProperty(interfaceName);
         String resolveFile = null;
         if (resolve == null || resolve.length() == 0) {
@@ -246,6 +250,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             }
         }
+        // -------------------------------✨ 分割线2 ✨------------------------------
+        /*
+        检测几个核心配置类是否为空，为空则从其他配置类中获取
+         */
         if (consumer != null) {
             if (application == null) {
                 application = consumer.getApplication();
@@ -279,6 +287,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         checkApplication();
         checkStub(interfaceClass);
         checkMock(interfaceClass);
+        // -------------------------------✨ 分割线3 ✨------------------------------
+        /*
+        收集各种配置，并将配置存储到 map 中
+         */
         Map<String, String> map = new HashMap<String, String>();
         Map<Object, Object> attributes = new HashMap<Object, Object>();
         map.put(Constants.SIDE_KEY, Constants.CONSUMER_SIDE);
@@ -306,6 +318,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         appendParameters(map, module);
         appendParameters(map, consumer, Constants.DEFAULT_KEY);
         appendParameters(map, this);
+        // -------------------------------✨ 分割线4 ✨------------------------------
+        /*
+        处理 MethodConfig 实例。该实例包含了事件通知配置，比如 onreturn、onthrow、oninvoke 等
+         */
         String prefix = StringUtils.getServiceKey(map);
         if (methods != null && !methods.isEmpty()) {
             for (MethodConfig method : methods) {
@@ -321,7 +337,10 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 checkAndConvertImplicitConfig(method, map, attributes);
             }
         }
-
+        // -------------------------------✨ 分割线5 ✨------------------------------
+        /*
+        解析服务消费者 ip，以及调用 createProxy 创建代理对象
+         */
         String hostToRegistry = ConfigUtils.getSystemProperty(Constants.DUBBO_IP_TO_REGISTRY);
         if (hostToRegistry == null || hostToRegistry.length() == 0) {
             hostToRegistry = NetUtils.getLocalHost();
@@ -337,6 +356,13 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         ApplicationModel.initConsumerModel(getUniqueServiceName(), consumerModel);
     }
 
+    /**
+     * 总共两大部分：
+     *  1.通过 adaptive 扩展类的 refprotocol 创建invoker(可能调用 RegistryProtocol#refer 或 DubboProtocol#refer)
+     *  2.创建代理
+     * @param map
+     * @return
+     */
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private T createProxy(Map<String, String> map) {
         URL tmpUrl = new URL("temp", "localhost", 0, map);
@@ -377,6 +403,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                     }
                 }
             } else { // assemble URL from register center's configuration
+                // 加载注册中心链接
                 List<URL> us = loadRegistries(false);
                 if (us != null && !us.isEmpty()) {
                     for (URL u : us) {
@@ -392,12 +419,19 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
             }
 
+            // 单个注册中心或服务提供者(服务直连，下同)
             if (urls.size() == 1) {
+                // 通过AdaptiveSPI调用 RegistryProtocol 的 refer 构建 Invoker 实例
                 invoker = refprotocol.refer(interfaceClass, urls.get(0));
             } else {
+                // 多个注册中心或多个服务提供者，或者两者混合
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
+                //构建多个invoker
                 for (URL url : urls) {
+                    // 这里传入的参数url的protocol不一样，调用的Protocol实例也不一样
+                    // 所以会调用对应的protocol的refer方法生成invoker
+                    // 在这里会调用到RegistryProtocol
                     invokers.add(refprotocol.refer(interfaceClass, url));
                     if (Constants.REGISTRY_PROTOCOL.equals(url.getProtocol())) {
                         registryURL = url; // use last registry url
@@ -405,7 +439,9 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
                 }
                 if (registryURL != null) { // registry url is available
                     // use AvailableCluster only when register's cluster is available
+                    // 如果用户至少配置了一个注册中心链接，则会使用 AvailableCluster
                     URL u = registryURL.addParameterIfAbsent(Constants.CLUSTER_KEY, AvailableCluster.NAME);
+                    // 创建 StaticDirector 实例，并由 Cluster 对多个Invoker进行合并
                     invoker = cluster.join(new StaticDirectory(u, invokers));
                 } else { // not a registry url
                     invoker = cluster.join(new StaticDirectory(invokers));
@@ -420,6 +456,8 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
         if (c == null) {
             c = true; // default true
         }
+
+        // invoker 可用性检查
         if (c && !invoker.isAvailable()) {
             // make it possible for consumer to retry later if provider is temporarily unavailable
             initialized = false;
@@ -429,6 +467,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
             logger.info("Refer dubbo service " + interfaceClass.getName() + " from url " + invoker.getUrl());
         }
         // create service proxy
+        // 生成代理类
         return (T) proxyFactory.getProxy(invoker);
     }
 

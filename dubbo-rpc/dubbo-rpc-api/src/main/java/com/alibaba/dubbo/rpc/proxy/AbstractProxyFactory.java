@@ -34,8 +34,18 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
         return getProxy(invoker, false);
     }
 
+    /**
+     * 主要是设置代理类的实现接口信息，调用子类的getProxy方法得到代理类对象
+     *  子类有 Jdk的动态代理、Javassist动态代理
+     * @param invoker
+     * @param generic
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     @Override
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
+        //设置 interface，有 本身的interface、EchoServeice、GenericService（可能）
         Class<?>[] interfaces = null;
         String config = invoker.getUrl().getParameter("interfaces");
         if (config != null && config.length() > 0) {

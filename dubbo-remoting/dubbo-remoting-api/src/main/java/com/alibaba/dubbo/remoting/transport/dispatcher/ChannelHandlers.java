@@ -26,6 +26,9 @@ import com.alibaba.dubbo.remoting.transport.MultiMessageHandler;
 
 public class ChannelHandlers {
 
+    /**
+     * 单例模式
+     */
     private static ChannelHandlers INSTANCE = new ChannelHandlers();
 
     protected ChannelHandlers() {
